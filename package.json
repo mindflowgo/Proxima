@@ -1,6 +1,6 @@
 {
     "name": "proxima",
-    "version": "3.5.0",
+    "version": "3.5.2",
     "description": "Proxima - Local MCP Server (requires localhost network access for AI coding tools)",
     "license": "SEE LICENSE IN LICENSE",
     "author": "Zen4-bit, mindflowgo",
@@ -26,6 +26,7 @@
         "build:mac:dir": "electron-builder --mac dir"
     },
     "build": {
+        "asar": true,
         "appId": "com.proxima.app",
         "productName": "Proxima",
         "copyright": "Copyright © 2026 Proxima",
@@ -40,9 +41,12 @@
             "package.json"
         ],
         "asarUnpack": [
+            "package.json",
             "src/**/*",
+            "node_modules/**/*",
             "**/*.node",
             "**/*.wasm",
+            "**/*.dll",
             "**/*.dylib",
             "**/*.so"
         ],

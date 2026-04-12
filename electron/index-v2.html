@@ -1325,7 +1325,7 @@ Confirm when done</pre>
             <!-- Version Footer -->
             <div
                 style="text-align: center; padding: 20px 0; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.05);">
-                <span style="color: #666; font-size: 0.8rem;">Proxima v1.0 • Multi-AI MCP Server</span>
+                <span style="color: #666; font-size: 0.8rem;">Proxima v3.5.2 • Multi-AI MCP Server</span>
             </div>
         </div>
     </div>
@@ -1987,6 +1987,12 @@ Confirm when done</pre>
                     }
                 }, 2000);
             }
+
+            for (const delayMs of [250, 2500, 7000, 15000]) {
+                setTimeout(() => {
+                    refreshEnabledProviderStatuses();
+                }, delayMs);
+            }
         }
 
         function updateUI() {
@@ -2075,6 +2081,18 @@ Confirm when done</pre>
                 if (currentTab === provider) {
                     loginStatus.textContent = 'Not logged in';
                     loginStatus.className = 'login-status not-logged-in';
+                }
+            }
+        }
+
+        async function refreshEnabledProviderStatuses() {
+            const enabledProviders = getEnabledProviderCatalog();
+
+            for (const provider of enabledProviders) {
+                try {
+                    await updateProviderStatus(provider.id);
+                } catch (error) {
+                    console.warn(`Status refresh failed for ${provider.id}:`, error);
                 }
             }
         }

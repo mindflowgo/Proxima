@@ -4,7 +4,7 @@
 
 ### Multi-AI Gateway — One API, All Models
 
-[![Version](https://img.shields.io/badge/version-3.5.0-blue.svg)](https://github.com/Zen4-bit/Proxima/releases)
+[![Version](https://img.shields.io/badge/version-3.5.2-blue.svg)](https://github.com/Zen4-bit/Proxima/releases)
 [![License](https://img.shields.io/badge/license-Personal%20Use-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey.svg)]()
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-55-orange.svg)]()
@@ -60,7 +60,7 @@ POST /v1/chat/completions
 
 ---
 
-## What's New in v3.5.0
+## What's New in v3.5.2
 
 - 🆕 **6 additional providers** — DeepSeek, Grok, Z.AI, Copilot, Meta AI, Qwen
 - 🆕 **27 new MCP tools** — content, analysis, file analysis, window control, session management
@@ -94,7 +94,7 @@ POST /v1/chat/completions
 
 **Download Installer**
 
-Download the latest release and run the installer. Windows installers are published; macOS can be run from source or built locally from this repo.
+Download the latest release and run the installer. Windows installers are published; macOS can be run from source or built locally from this repo with `npm run build:mac` or `npm run build:mac:dir`.
 
 [Download for Windows →](https://github.com/Zen4-bit/Proxima/releases)
 
@@ -392,7 +392,8 @@ Add this to your AI coding app's MCP settings:
   "mcpServers": {
     "proxima": {
       "command": "node",
-      "args": ["/absolute/path/to/Proxima/src/mcp-server-v3.js"]
+      "args": ["/absolute/path/to/Proxima/src/mcp-server-v3.js"],
+      "cwd": "/absolute/path/to/Proxima"
     }
   }
 }
@@ -402,14 +403,18 @@ Add this to your AI coding app's MCP settings:
 
 Proxima generates the correct JSON for the current install in the Settings panel. These are the common path patterns:
 
-| Install Type | Example MCP Server Path |
-|--------------|-------------------------|
-| Source checkout on macOS | `/Users/you/Dev/Proxima/src/mcp-server-v3.js` |
-| Source checkout on Windows | `C:/path/to/Proxima/src/mcp-server-v3.js` |
-| Packaged macOS app | `/Applications/Proxima.app/Contents/Resources/app.asar.unpacked/src/mcp-server-v3.js` |
-| Packaged Windows app | `C:/Program Files/Proxima/resources/app.asar.unpacked/src/mcp-server-v3.js` |
+| Install Type | Example MCP Server Path | Example `cwd` |
+|--------------|-------------------------|---------------|
+| Source checkout on macOS | `/Users/you/Dev/Proxima/src/mcp-server-v3.js` | `/Users/you/Dev/Proxima` |
+| Source checkout on Windows | `C:/path/to/Proxima/src/mcp-server-v3.js` | `C:/path/to/Proxima` |
+| Packaged macOS app | `/Applications/Proxima.app/Contents/Resources/app.asar.unpacked/src/mcp-server-v3.js` | `/Applications/Proxima.app/Contents/Resources/app.asar.unpacked` |
+| Packaged Windows app | `C:/Program Files/Proxima/resources/app.asar.unpacked/src/mcp-server-v3.js` | `C:/Program Files/Proxima/resources/app.asar.unpacked` |
 
 > **Tip:** Copy the exact config from Proxima's Settings panel instead of typing paths manually.
+>
+> **Packaged installs:** Proxima now emits `cwd` pointing at `app.asar.unpacked` so the standalone MCP `node` process can resolve unpacked runtime dependencies on both Windows and macOS.
+>
+> **Fresh installs:** Current packaged builds unpack `src`, `package.json`, `node_modules`, and native runtime libraries into `app.asar.unpacked`, so external MCP clients can launch Proxima immediately without manual path or dependency fixes.
 >
 > **File attachments:** Turn on **Enable File Attachments** in Settings if you want MCP tools to use `files` or `filePath`.
 
@@ -582,8 +587,9 @@ Enable that provider in Proxima Settings first. The direct provider tools (`ask_
 <summary><strong>MCP tools not showing in Cursor/VS Code</strong></summary>
 
 1. Ensure Proxima is running
-2. Verify the path in your MCP config is correct
-3. Restart your AI coding app
+2. If you are using a packaged install, recopy the MCP JSON from Proxima Settings so it includes the unpacked `cwd`
+3. Verify the path in your MCP config is correct
+4. Restart your AI coding app
 </details>
 
 <details>
@@ -603,7 +609,7 @@ See [LICENSE](LICENSE) for details.
 
 <div align="center">
 
-**Proxima v3.5.0** — One API, All AI Models ⚡
+**Proxima v3.5.2** — One API, All AI Models ⚡
 
 Made by [Zen4-bit](https://github.com/Zen4-bit)
 Extended models and features [MindFlowGo](https://github.com/mindflowgo/)

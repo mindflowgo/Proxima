@@ -6,16 +6,28 @@ module.exports = async function sendToMetaAI({ webContents, message, runtime }) 
 
     const prepared = await webContents.executeJavaScript(`
         (function() {
-            const input = document.querySelector('[role="textbox"][contenteditable="true"]') ||
+            const isVisible = (element) => {
+                if (!element) return false;
+                const style = window.getComputedStyle(element);
+                return style.display !== 'none' &&
+                    style.visibility !== 'hidden' &&
+                    (element.offsetWidth > 0 || element.offsetHeight > 0 || element.getClientRects().length > 0);
+            };
+
+            const input = document.querySelector('[data-testid="composer-input"][contenteditable="true"]') ||
+                document.querySelector('[role="textbox"][data-testid="composer-input"]') ||
+                document.querySelector('[role="textbox"][contenteditable="true"]') ||
+                document.querySelector('[contenteditable="true"][data-testid="composer-input"]') ||
                 document.querySelector('[contenteditable="true"]') ||
                 document.querySelector('input[placeholder*="Meta AI"]') ||
                 document.querySelector('input[type="text"]');
 
-            if (!input) {
+            if (!input || !isVisible(input)) {
                 return { ready: false, error: 'No Meta AI input found' };
             }
 
             input.focus();
+            input.click();
 
             if (input.matches('[contenteditable="true"], [role="textbox"]')) {
                 const selection = window.getSelection();
@@ -71,17 +83,21 @@ module.exports = async function sendToMetaAI({ webContents, message, runtime }) 
 
             input.dispatchEvent(new Event('change', { bubbles: true }));
 
-            return { ready: true };
+            return {
+                ready: true,
+                selector: input.getAttribute('data-testid') || input.getAttribute('role') || input.tagName,
+                textPreview: (input.value || input.innerText || input.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 120)
+            };
         })()
     `);
+
+    console.log('[Meta AI] Prepare result:', prepared);
 
     if (!prepared?.ready) {
         return { sent: false, error: prepared?.error || 'Failed to prepare Meta AI input' };
     }
 
-    await runtime.sleep(250);
-
-    const clickResult = await webContents.executeJavaScript(`
+    const clickScript = `
         (function() {
             const isVisible = (element) => {
                 if (!element) return false;
@@ -91,32 +107,82 @@ module.exports = async function sendToMetaAI({ webContents, message, runtime }) 
                     (element.offsetWidth > 0 || element.offsetHeight > 0 || element.getClientRects().length > 0);
             };
 
-            const sendButton = document.querySelector('button[aria-label="Send"]') ||
-                document.querySelector('button[aria-label*="Send"]');
+            const selectors = [
+                '[data-testid="composer-send-button"]',
+                'button[aria-label="Send"]',
+                'button[aria-label*="Send"]'
+            ];
 
-            if (!sendButton) {
-                return { clicked: false, reason: 'No send button found' };
+            const candidates = [];
+
+            for (const selector of selectors) {
+                const sendButton = document.querySelector(selector);
+                if (!sendButton) continue;
+
+                const ariaDisabled = sendButton.getAttribute('aria-disabled');
+                const disabled = !!sendButton.disabled ||
+                    sendButton.hasAttribute('disabled') ||
+                    ariaDisabled === 'true';
+
+                candidates.push({
+                    selector,
+                    ariaLabel: sendButton.getAttribute('aria-label') || '',
+                    dataTestId: sendButton.getAttribute('data-testid') || '',
+                    visible: isVisible(sendButton),
+                    disabled
+                });
+
+                if (!disabled && isVisible(sendButton)) {
+                    sendButton.click();
+                    return {
+                        clicked: true,
+                        selector,
+                        ariaLabel: sendButton.getAttribute('aria-label') || '',
+                        dataTestId: sendButton.getAttribute('data-testid') || ''
+                    };
+                }
             }
 
-            const ariaDisabled = sendButton.getAttribute('aria-disabled');
-            const disabled = !!sendButton.disabled || sendButton.hasAttribute('disabled') || ariaDisabled === 'true';
-
-            if (disabled || !isVisible(sendButton)) {
-                return {
-                    clicked: false,
-                    reason: disabled ? 'Send button disabled' : 'Send button not visible'
-                };
-            }
-
-            sendButton.click();
-            return { clicked: true };
+            return {
+                clicked: false,
+                reason: candidates.length > 0 ? 'Send button still disabled or hidden' : 'No send button found',
+                candidates
+            };
         })()
-    `);
+    `;
+
+    let clickResult = null;
+    for (let attempt = 0; attempt < 15; attempt++) {
+        clickResult = await webContents.executeJavaScript(clickScript);
+        if (clickResult?.clicked) {
+            break;
+        }
+
+        await runtime.sleep(200);
+    }
+
+    console.log('[Meta AI] Click result:', clickResult);
 
     if (!clickResult?.clicked) {
+        await webContents.executeJavaScript(`
+            (function() {
+                const input = document.querySelector('[data-testid="composer-input"][contenteditable="true"]') ||
+                    document.querySelector('[role="textbox"][data-testid="composer-input"]') ||
+                    document.querySelector('[role="textbox"][contenteditable="true"]') ||
+                    document.querySelector('[contenteditable="true"]');
+                if (input) {
+                    input.focus();
+                    input.click();
+                }
+            })()
+        `);
+
         await webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
         await webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
     }
 
-    return { sent: true };
+    return {
+        sent: true,
+        submit: clickResult || { clicked: false, reason: 'Used Enter fallback' }
+    };
 };

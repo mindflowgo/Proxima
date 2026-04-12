@@ -481,6 +481,7 @@ class BrowserManager {
             this.mainWindow.addBrowserView(view);
             view.setBounds(bounds);
             view.setAutoResize({ width: true, height: true });
+            view.webContents.focus();
 
             this.activeProvider = provider;
         } catch (e) {

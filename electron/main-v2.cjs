@@ -1040,18 +1040,22 @@ ipcMain.handle('get-provider-navigation-state', async (event, provider) => {
 
 ipcMain.handle('get-mcp-config', () => {
     const resourcesPath = process.resourcesPath || path.join(__dirname, '..');
-    const unpackedPath = path.join(resourcesPath, 'app.asar.unpacked', 'src', 'mcp-server-v3.js');
+    const unpackedRoot = path.join(resourcesPath, 'app.asar.unpacked');
 
     const isDev = !app.isPackaged;
     const serverPath = isDev
         ? path.join(__dirname, '..', 'src', 'mcp-server-v3.js')
-        : unpackedPath;
+        : path.join(unpackedRoot, 'src', 'mcp-server-v3.js');
+    const cwdPath = isDev
+        ? path.join(__dirname, '..')
+        : unpackedRoot;
 
     return {
         mcpServers: {
             'proxima': {
                 command: 'node',
-                args: [serverPath.replace(/\\/g, '/')]
+                args: [serverPath.replace(/\\/g, '/')],
+                cwd: cwdPath.replace(/\\/g, '/')
             }
         }
     };

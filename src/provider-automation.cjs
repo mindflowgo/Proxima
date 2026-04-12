@@ -1407,37 +1407,51 @@ const TYPING_DETECTION_BODIES = {
             return { isTyping: true, provider: 'qwen' };
         }
 
+        const assistantMessages = Array.from(document.querySelectorAll('.qwen-chat-message-assistant'));
+        const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
+        const responseBlock = lastAssistantMessage?.querySelector(
+            '.response-message-content .custom-qwen-markdown, .response-message-content .qwen-markdown, .response-message-content'
+        );
+        const responseText = (responseBlock?.innerText || responseBlock?.textContent || '').trim();
+        const pendingStatus = lastAssistantMessage?.querySelector(
+            '.qwen-chat-status-card-title-animate, .qwen-chat-status-card, .qwen-chat-tool-status-card, .qwen-chat-thinking-tool-status-card-wraper'
+        );
+        const pendingText = (pendingStatus?.innerText || pendingStatus?.textContent || '').trim();
+        const pendingClassName = String(pendingStatus?.className || '');
+
         const activeThinkingStatus = Array.from(document.querySelectorAll(
-            '.qwen-chat-status-card-title-animate, .qwen-chat-status-card, .qwen-chat-tool-status-card, .qwen-chat-thinking-tool-status-card-wraper, .page-loading, [class*="thinking"], [class*="loading"]'
+            '.qwen-chat-status-card-title-animate, .qwen-chat-status-card, .qwen-chat-tool-status-card, .qwen-chat-thinking-tool-status-card-wraper, [class*="thinking"], [class*="loading"]'
         )).find((element) => {
             if (!isVisible(element)) return false;
             const text = (element.innerText || element.textContent || '').trim();
-            if (/thinking completed/i.test(text)) return false;
-            return /thinking|generating|analyzing|reasoning|searching/i.test(text) ||
-                String(element.className || '').includes('page-loading');
+            const className = String(element.className || '');
+
+            if (/thinking completed/i.test(text) || className.includes('completed')) {
+                return false;
+            }
+
+            if (className.includes('page-loading')) {
+                return !responseText;
+            }
+
+            if (className.includes('qwen-thinking-selector') || className.includes('qwen-select-thinking')) {
+                return false;
+            }
+
+            return /thinking|generating|analyzing|reasoning|searching/i.test(text);
         });
 
         if (activeThinkingStatus) {
             return { isTyping: true, provider: 'qwen' };
         }
 
-        const assistantMessages = Array.from(document.querySelectorAll('.qwen-chat-message-assistant'));
-        const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
-        if (lastAssistantMessage) {
-            const responseBlock = lastAssistantMessage.querySelector(
-                '.response-message-content .custom-qwen-markdown, .response-message-content .qwen-markdown, .response-message-content'
-            );
-            const responseText = (responseBlock?.innerText || responseBlock?.textContent || '').trim();
-            const pendingStatus = lastAssistantMessage.querySelector('.qwen-chat-status-card-title-animate, .qwen-chat-status-card');
-            const pendingText = (pendingStatus?.innerText || pendingStatus?.textContent || '').trim();
-
-            if ((!responseText || /^thinking\\.{0,3}$/i.test(responseText)) &&
-                pendingStatus &&
-                isVisible(pendingStatus) &&
-                /thinking|generating|analyzing|reasoning|searching/i.test(pendingText) &&
-                !/thinking completed/i.test(pendingText)) {
-                return { isTyping: true, provider: 'qwen' };
-            }
+        if ((!responseText || /^thinking\\.{0,3}$/i.test(responseText)) &&
+            pendingStatus &&
+            isVisible(pendingStatus) &&
+            /thinking|generating|analyzing|reasoning|searching/i.test(pendingText) &&
+            !/thinking completed/i.test(pendingText) &&
+            !pendingClassName.includes('completed')) {
+            return { isTyping: true, provider: 'qwen' };
         }
 
         return { isTyping: false };
@@ -1455,8 +1469,10 @@ const SEND_BUTTON_SELECTORS = {
         'button:has(svg)'
     ],
     gemini: [
+        'button.send-button',
+        'button.submit',
         'button[aria-label*="Send"]',
-        'button.send-button'
+        'button[aria-label*="Enviar"]'
     ],
     deepseek: [
         'textarea[name="search"]'

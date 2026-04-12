@@ -85,6 +85,66 @@ class ProviderRuntime {
         });
     }
 
+    resolveAutomationBounds(provider) {
+        const defaultBounds = { x: 0, y: 170, width: 1200, height: 680 };
+        const views = this.browserManager?.views;
+
+        if (!(views instanceof Map)) {
+            return defaultBounds;
+        }
+
+        const getUsableBounds = (view) => {
+            if (!view || typeof view.getBounds !== 'function') {
+                return null;
+            }
+
+            const bounds = view.getBounds();
+            if (!bounds || bounds.width <= 0 || bounds.height <= 0) {
+                return null;
+            }
+
+            return bounds.x >= 0 ? bounds : null;
+        };
+
+        const activeView = this.browserManager?.activeProvider
+            ? views.get(this.browserManager.activeProvider)
+            : null;
+        const targetView = views.get(provider);
+
+        return getUsableBounds(activeView) || getUsableBounds(targetView) || defaultBounds;
+    }
+
+    async prepareProviderForAutomation(provider) {
+        const mainWindow = this.browserManager?.mainWindow;
+        const showProvider = this.browserManager?.showProvider?.bind(this.browserManager);
+        const bounds = this.resolveAutomationBounds(provider);
+
+        if (typeof showProvider === 'function') {
+            try {
+                showProvider(provider, bounds);
+            } catch (error) {
+                console.log(`[prepareProviderForAutomation] ${provider}: showProvider failed:`, error.message);
+            }
+        }
+
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            try {
+                mainWindow.focus();
+            } catch (error) {}
+
+            try {
+                mainWindow.webContents.send('set-active-provider', provider);
+            } catch (error) {}
+        }
+
+        const webContents = this.getWebContents(provider);
+        try {
+            webContents.focus();
+        } catch (error) {}
+
+        await this.sleep(150);
+    }
+
     resolveCapturedImageDownloadDir() {
         const configuredDir = this.getSettings()?.capturedImageDownloadDir;
         const resolvedDir = configuredDir
@@ -363,6 +423,8 @@ class ProviderRuntime {
     }
 
     async sendMessage(provider, message) {
+        await this.prepareProviderForAutomation(provider);
+
         const webContents = this.getWebContents(provider);
         await this.resetNetworkCapture(webContents);
 
@@ -669,6 +731,8 @@ class ProviderRuntime {
     }
 
     async uploadFile(provider, filePath) {
+        await this.prepareProviderForAutomation(provider);
+
         const webContents = this.getWebContents(provider);
 
         if (!fs.existsSync(filePath)) {

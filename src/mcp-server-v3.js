@@ -488,7 +488,7 @@ const router = new SmartRouter(providersById);
 // Create MCP Server
 const server = new McpServer({
     name: 'agent-hub',
-    version: '3.0.0',
+    version: '3.5.2',
     description: 'Agent Hub MCP Server v3 - Embedded Browser Edition'
 });
 
@@ -1887,7 +1887,7 @@ server.resource(
                 mimeType: 'application/json',
                 text: JSON.stringify({
                     server: 'Proxima MCP Server',
-                    version: '3.0.0',
+                    version: '3.5.2',
                     enabledProviders: Array.from(enabled),
                     connected: ipcClient.connected
                 }, null, 2)
