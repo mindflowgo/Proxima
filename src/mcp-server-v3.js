@@ -260,8 +260,8 @@ class AIProvider {
         return result;
     }
 
-    async chat(message, useCache = true) {
-        // Check cache
+    async chat(message, useCache = false) {
+        // Check cache (disabled by default to avoid stale responses)
         if (useCache && this.cache.has(message)) {
             const cached = this.cache.get(message);
             if (Date.now() - cached.time < this.cacheTimeout) {
@@ -370,7 +370,7 @@ class AIProvider {
     }
 
     // Legacy chat method (without typing detection)
-    async chatSimple(message, useCache = true) {
+    async chatSimple(message, useCache = false) {
         if (useCache && this.cache.has(message)) {
             const cached = this.cache.get(message);
             if (Date.now() - cached.time < this.cacheTimeout) {
@@ -387,7 +387,7 @@ class AIProvider {
         return response;
     }
 
-    async search(query, useCache = true) {
+    async search(query, useCache = false) {
         return await this.chat(query, useCache);
     }
 
@@ -554,6 +554,7 @@ function checkDisabled(providerName) {
 
 server.tool(
     'deep_search',
+    'Perform a deep search query using Perplexity AI, with optional file attachments.',
     {
         query: z.string().describe('The search query to send to Perplexity AI'),
         files: z.array(z.string()).optional().describe('Optional: Array of file paths to upload as attachments')
@@ -578,6 +579,7 @@ server.tool(
 
 server.tool(
     'pro_search',
+    'Perform a detailed Pro search with comprehensive sources using Perplexity AI.',
     { query: z.string().describe('Query for detailed Pro search') },
     async ({ query }) => {
         const disabled = checkDisabled('perplexity');
@@ -592,6 +594,7 @@ server.tool(
 
 server.tool(
     'youtube_search',
+    'Search for YouTube videos using Perplexity AI.',
     { query: z.string().describe('What to search for on YouTube') },
     async ({ query }) => {
         const disabled = checkDisabled('perplexity');
@@ -606,6 +609,7 @@ server.tool(
 
 server.tool(
     'reddit_search',
+    'Search Reddit discussions and threads using Perplexity AI.',
     { query: z.string().describe('What to search for on Reddit') },
     async ({ query }) => {
         const disabled = checkDisabled('perplexity');
@@ -620,6 +624,7 @@ server.tool(
 
 server.tool(
     'news_search',
+    'Search for latest news on a given topic using Perplexity AI.',
     {
         query: z.string().describe('News topic to search'),
         timeframe: z.string().optional().describe('Timeframe like "today", "this week", "2024"')
@@ -638,6 +643,7 @@ server.tool(
 
 server.tool(
     'image_search',
+    'Search for images on the web using Perplexity AI.',
     { query: z.string().describe('What images to find') },
     async ({ query }) => {
         const disabled = checkDisabled('perplexity');
@@ -652,6 +658,7 @@ server.tool(
 
 server.tool(
     'math_search',
+    'Solve math problems and scientific questions with step-by-step explanations.',
     { query: z.string().describe('Math problem or scientific question') },
     async ({ query }) => {
         const disabled = checkDisabled('perplexity');
@@ -666,6 +673,7 @@ server.tool(
 
 server.tool(
     'academic_search',
+    'Search for academic research and peer-reviewed papers using Perplexity AI.',
     { query: z.string().describe('Academic/research query') },
     async ({ query }) => {
         const disabled = checkDisabled('perplexity');
@@ -682,6 +690,7 @@ server.tool(
 
 server.tool(
     'verify_code',
+    'Verify code follows best practices and identify potential issues.',
     {
         purpose: z.string().describe('Description of what the code should do'),
         code: z.string().optional().describe('Optional code snippet to verify')
@@ -702,6 +711,7 @@ server.tool(
 
 server.tool(
     'explain_code',
+    'Explain a code snippet or source file in detail with context.',
     {
         code: z.string().optional().describe('The code snippet to explain (or use files parameter)'),
         language: z.string().optional().describe('Programming language'),
@@ -724,6 +734,7 @@ server.tool(
 
 server.tool(
     'generate_code',
+    'Generate code in a specified programming language based on a natural language description.',
     {
         description: z.string().describe('What the code should do'),
         language: z.string().optional().describe('Programming language (default: JavaScript)')
@@ -742,6 +753,7 @@ server.tool(
 
 server.tool(
     'debug_code',
+    'Debug code by identifying errors and suggesting fixes for bugs.',
     {
         code: z.string().optional().describe('The code with bugs (or use files parameter)'),
         error: z.string().optional().describe('Error message if any'),
@@ -766,6 +778,7 @@ server.tool(
 
 server.tool(
     'optimize_code',
+    'Suggest performance improvements and optimizations for existing code.',
     {
         code: z.string().optional().describe('Code to optimize (or use files parameter)'),
         goal: z.string().optional().describe('Optimization goal'),
@@ -788,6 +801,7 @@ server.tool(
 
 server.tool(
     'review_code',
+    'Review code for bugs, security issues, and best practices violations.',
     {
         code: z.string().optional().describe('Code to review (or use files parameter)'),
         context: z.string().optional().describe('Context about the code'),
@@ -810,6 +824,7 @@ server.tool(
 
 server.tool(
     'research_fix',
+    'Research and explain how to fix a given error message with solutions.',
     { error: z.string().describe('The error message to research') },
     async ({ error }) => {
         const disabled = checkDisabled('perplexity');
@@ -826,6 +841,7 @@ server.tool(
 
 server.tool(
     'summarize_url',
+    'Summarize the content of a web page given its URL.',
     {
         url: z.string().describe('The URL to summarize'),
         focus: z.string().optional().describe('Focus area')
@@ -844,6 +860,7 @@ server.tool(
 
 server.tool(
     'generate_article',
+    'Generate an article or blog post on a given topic in a specified writing style.',
     {
         topic: z.string().describe('Topic to write about'),
         style: z.string().optional().describe('Writing style')
@@ -862,6 +879,7 @@ server.tool(
 
 server.tool(
     'brainstorm',
+    'Brainstorm creative ideas for a given topic.',
     { topic: z.string().describe('Topic to brainstorm ideas for') },
     async ({ topic }) => {
         const disabled = checkDisabled('perplexity');
@@ -876,6 +894,7 @@ server.tool(
 
 server.tool(
     'analyze_document',
+    'Analyze a document from a URL and answer specific questions about its content.',
     {
         url: z.string().describe('URL of the document'),
         question: z.string().optional().describe('Specific question')
@@ -894,6 +913,7 @@ server.tool(
 
 server.tool(
     'analyze_image_url',
+    'Analyze an image from a URL using an AI provider with vision capabilities.',
     {
         imageUrl: z.string().describe('URL of the image to analyze'),
         focus: z.string().optional().describe('What to focus on in the analysis'),
@@ -953,6 +973,7 @@ server.tool(
 
 server.tool(
     'extract_data',
+    'Extract structured data from text or web content based on a specified data type.',
     {
         content: z.string().describe('Text or URL to extract data from'),
         dataType: z.string().describe('What data to extract')
@@ -970,6 +991,7 @@ server.tool(
 
 server.tool(
     'writing_help',
+    'Get help with writing: improve text, fix grammar, change tone, or rewrite content.',
     {
         request: z.string().describe('What writing help you need'),
         content: z.string().optional().describe('Content to improve')
@@ -988,6 +1010,7 @@ server.tool(
 
 server.tool(
     'generate_image_prompt',
+    'Create a detailed AI image generation prompt from a natural language description.',
     {
         description: z.string().describe('What image you want'),
         style: z.string().optional().describe('Art style')
@@ -1008,6 +1031,7 @@ server.tool(
 
 server.tool(
     'translate',
+    'Translate text between languages with accurate results.',
     {
         text: z.string().describe('Text to translate'),
         targetLanguage: z.string().describe('Target language'),
@@ -1027,6 +1051,7 @@ server.tool(
 
 server.tool(
     'fact_check',
+    'Fact-check a claim or statement using reliable sources.',
     { claim: z.string().describe('The claim to verify') },
     async ({ claim }) => {
         const disabled = checkDisabled('perplexity');
@@ -1041,6 +1066,7 @@ server.tool(
 
 server.tool(
     'find_stats',
+    'Find statistics, data, and numerical information on a given topic.',
     {
         topic: z.string().describe('Topic to find statistics about'),
         year: z.string().optional().describe('Specific year')
@@ -1059,6 +1085,7 @@ server.tool(
 
 server.tool(
     'compare',
+    'Compare two items side by side with pros, cons, and key differences.',
     {
         item1: z.string().describe('First item to compare'),
         item2: z.string().describe('Second item to compare'),
@@ -1078,6 +1105,7 @@ server.tool(
 
 server.tool(
     'how_to',
+    'Get step-by-step instructions on how to do something.',
     { task: z.string().describe('What to learn how to do') },
     async ({ task }) => {
         const disabled = checkDisabled('perplexity');
@@ -1094,6 +1122,7 @@ server.tool(
 
 server.tool(
     'ask_chatgpt',
+    'Send a message to ChatGPT and get its response, with optional file attachments.',
     {
         message: z.string().describe('Message to send to ChatGPT'),
         files: z.array(z.string()).optional().describe('Optional: Array of file paths to upload as attachments')
@@ -1126,6 +1155,7 @@ server.tool(
 
 server.tool(
     'ask_claude',
+    'Send a message to Claude AI and get its response, with optional file attachments.',
     {
         message: z.string().describe('Message to send to Claude'),
         files: z.array(z.string()).optional().describe('Optional: Array of file paths to upload as attachments')
@@ -1155,6 +1185,7 @@ server.tool(
 
 server.tool(
     'ask_gemini',
+    'Send a message to Google Gemini and get its response, with optional file attachments.',
     {
         message: z.string().describe('Message to send to Gemini'),
         files: z.array(z.string()).optional().describe('Optional: Array of file paths to upload as attachments')
@@ -1184,6 +1215,7 @@ server.tool(
 
 server.tool(
     'ask_deepseek',
+    'Send a message to DeepSeek AI and get its response, with optional file attachments.',
     {
         message: z.string().describe('Message to send to DeepSeek'),
         files: z.array(z.string()).optional().describe('Optional: Array of file paths to upload as attachments')
@@ -1211,6 +1243,7 @@ server.tool(
 
 server.tool(
     'ask_grok',
+    'Send a message to Grok AI and get its response, with optional file attachments.',
     {
         message: z.string().describe('Message to send to Grok'),
         files: z.array(z.string()).optional().describe('Optional: Array of file paths to upload as attachments')
@@ -1238,6 +1271,7 @@ server.tool(
 
 server.tool(
     'ask_zai',
+    'Send a message to Z.ai and get its response, with optional file attachments.',
     {
         message: z.string().describe('Message to send to Z.ai'),
         files: z.array(z.string()).optional().describe('Optional: Array of file paths to upload as attachments')
@@ -1265,6 +1299,7 @@ server.tool(
 
 server.tool(
     'ask_copilot',
+    'Send a message to Microsoft Copilot and get its response, with optional file attachments.',
     {
         message: z.string().describe('Message to send to Microsoft Copilot'),
         files: z.array(z.string()).optional().describe('Optional: Array of file paths to upload as attachments')
@@ -1292,6 +1327,7 @@ server.tool(
 
 server.tool(
     'ask_metaai',
+    'Send a message to Meta AI and get its response, with optional file attachments.',
     {
         message: z.string().describe('Message to send to Meta AI'),
         files: z.array(z.string()).optional().describe('Optional: Array of file paths to upload as attachments')
@@ -1319,6 +1355,7 @@ server.tool(
 
 server.tool(
     'ask_qwen',
+    'Send a message to Qwen AI and get its response, with optional file attachments.',
     {
         message: z.string().describe('Message to send to Qwen'),
         files: z.array(z.string()).optional().describe('Optional: Array of file paths to upload as attachments')
@@ -1346,6 +1383,7 @@ server.tool(
 
 server.tool(
     'ask_all_ais',
+    'Send a message to all enabled AI providers simultaneously and compare responses.',
     {
         message: z.string().describe('Message to send to all enabled AI providers'),
         files: z.array(z.string()).optional().describe('Optional: Array of file paths to include as context')
@@ -1407,6 +1445,7 @@ server.tool(
 
 server.tool(
     'compare_ais',
+    'Ask a question to multiple AI providers and compare their responses.',
     {
         question: z.string().describe('Question to ask multiple AIs'),
         providers: z.array(z.string()).optional().describe('Which providers to use'),
@@ -1456,6 +1495,7 @@ server.tool(
 
 server.tool(
     'smart_query',
+    'Send a query that is automatically routed to the best available AI provider.',
     {
         message: z.string().describe('Message to send - auto-routes to best provider'),
         preferredProvider: z.string().optional().describe('Preferred provider'),
@@ -1479,6 +1519,7 @@ server.tool(
 
 server.tool(
     'router_stats',
+    'Returns statistics about the smart router usage and performance.',
     {},
     async () => {
         try {
@@ -1495,6 +1536,7 @@ server.tool(
 
 server.tool(
     'new_conversation',
+    'Start new conversations with all enabled AI providers.',
     {},
     async () => {
         try {
@@ -1513,6 +1555,7 @@ server.tool(
 
 server.tool(
     'clear_cache',
+    'Clear the cached responses from all AI providers.',
     {},
     async () => {
         try {
@@ -1528,6 +1571,7 @@ server.tool(
 
 server.tool(
     'analyze_file',
+    'Analyze a file contents or image and answer questions about it using AI.',
     {
         filePath: z.string().describe('Absolute path to the file to analyze'),
         question: z.string().optional().describe('Specific question about the file'),
@@ -1585,6 +1629,7 @@ server.tool(
 
 server.tool(
     'review_code_file',
+    'Review a code file for bugs, performance, security issues, and style using AI.',
     {
         filePath: z.string().describe('Absolute path to the code file to review'),
         focus: z.string().optional().describe('What to focus on (bugs, performance, security, style)'),
@@ -1621,6 +1666,7 @@ server.tool(
 
 server.tool(
     'show_window',
+    'Makes the Agent Hub window visible.',
     {},
     async () => {
         try {
@@ -1634,6 +1680,7 @@ server.tool(
 
 server.tool(
     'hide_window',
+    'Hides the Agent Hub window (runs in background).',
     {},
     async () => {
         try {
@@ -1647,6 +1694,7 @@ server.tool(
 
 server.tool(
     'toggle_window',
+    'Toggles the visibility of the Agent Hub window.',
     {},
     async () => {
         try {
@@ -1660,6 +1708,7 @@ server.tool(
 
 server.tool(
     'set_headless_mode',
+    'Enable or disable headless mode to run Agent Hub without a visible window.',
     { enabled: z.boolean().describe('Enable (true) or disable (false) headless mode') },
     async ({ enabled }) => {
         try {
@@ -1680,6 +1729,7 @@ server.tool(
 // Tool to check typing status
 server.tool(
     'get_typing_status',
+    'Check if AI providers are currently typing a response.',
     {
         provider: z.string().optional().describe('Provider to check. If not specified, checks all enabled providers.')
     },
@@ -1718,6 +1768,7 @@ server.tool(
 
 server.tool(
     'init_provider',
+    'Initialize a specific AI provider within Proxima for use.',
     {
         provider: z.string().describe('Provider ID or alias to initialize inside Proxima')
     },
@@ -1742,6 +1793,7 @@ server.tool(
 
 server.tool(
     'provider_status',
+    'Get the login status, typing status, and page info for a specific provider.',
     {
         provider: z.string().describe('Provider ID or alias to inspect')
     },
@@ -1780,6 +1832,7 @@ server.tool(
 
 server.tool(
     'debug_provider_dom',
+    'Debug and inspect the DOM of a specific provider page for troubleshooting.',
     {
         provider: z.string().describe('Provider ID or alias to inspect')
     },
@@ -1808,6 +1861,7 @@ server.tool(
 
 server.tool(
     'execute_provider_script',
+    'Execute JavaScript in the context of a specific provider page.',
     {
         provider: z.string().describe('Provider ID or alias to target'),
         script: z.string().describe('JavaScript expression or IIFE to execute in the provider page context')
@@ -1835,6 +1889,7 @@ server.tool(
 
 server.tool(
     'navigate_provider',
+    'Navigate a provider to a specific URL or open their home page.',
     {
         provider: z.string().describe('Provider ID or alias to target'),
         url: z.string().optional().describe('Optional URL to navigate to. If omitted, opens the provider home/new conversation page.')

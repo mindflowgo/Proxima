@@ -426,6 +426,23 @@ class ProviderRuntime {
         await this.prepareProviderForAutomation(provider);
 
         const webContents = this.getWebContents(provider);
+        
+        // CRITICAL FIX: Clear all cached response state BEFORE sending new message
+        // This prevents the race condition where old responses are returned
+        console.log(`[sendMessage] ${provider}: Clearing all cached response state before sending...`);
+        await webContents.executeJavaScript(`
+            (function() {
+                // Clear network interceptor cache
+                window.__proxima_captured_response = '';
+                window.__proxima_is_streaming = false;
+                window.__proxima_last_capture_time = 0;
+                console.log('[Proxima] Cleared response capture state before new message');
+            })()
+        `).catch(() => {});
+        
+        // Small delay to ensure state is cleared
+        await this.sleep(200);
+        
         await this.resetNetworkCapture(webContents);
 
         const sender = this.getSender(provider);
@@ -481,12 +498,108 @@ class ProviderRuntime {
             }
         }
 
-        const response = await this.getProviderResponse(provider);
+        // CRITICAL FIX: Wait for the new response to fully complete
+        // This prevents returning the previous/cached response
+        console.log(`[getResponseWithTyping] Waiting for NEW response to complete for ${provider}...`);
+        const response = await this.waitForNewResponse(provider);
+        
         return {
             typingStarted: true,
             typingStopped: true,
             response
         };
+    }
+
+    async waitForNewResponse(provider) {
+        const webContents = this.getWebContents(provider);
+        const responseOptions = getResponseOptions(provider);
+        const state = this.getProviderState(provider);
+        const previousFingerprint = state.fingerprint || '';
+        const previousBlockCount = state.blockCount || 0;
+        
+        console.log(`[waitForNewResponse] ${provider}: Starting wait (prev: ${previousFingerprint.length} chars)`);
+
+        // Fast polling loop: check network interceptor every 100ms
+        // Exit as soon as we see a complete response (streaming stopped)
+        const maxWaitMs = (responseOptions.maxWaitSeconds || 120) * 1000;
+        const pollIntervalMs = 100; // Fast polling
+        const maxPolls = maxWaitMs / pollIntervalMs;
+        let foundCompleteResponse = false;
+        let lastResponseLength = 0;
+        let networkInterceptorWorking = false;
+
+        console.log(`[waitForNewResponse] ${provider}: Fast polling network interceptor (${pollIntervalMs}ms intervals)...`);
+        
+        for (let i = 0; i < maxPolls; i++) {
+            await this.sleep(pollIntervalMs);
+            
+            try {
+                const status = await webContents.executeJavaScript(`
+                    (function() {
+                        return {
+                            response: window.__proxima_captured_response || '',
+                            isStreaming: window.__proxima_is_streaming || false,
+                            lastCaptureTime: window.__proxima_last_capture_time || 0
+                        };
+                    })()
+                `).catch(() => ({ response: '', isStreaming: false }));
+                
+                const len = status.response.length;
+                
+                // Track if network interceptor is working
+                if (len > 0) {
+                    networkInterceptorWorking = true;
+                }
+                
+                // Log progress every 2 seconds
+                if (i % 20 === 0 && i > 0) {
+                    console.log(`[waitForNewResponse] ${provider}: ${i * 0.1}s - ${len} chars, streaming: ${status.isStreaming}`);
+                }
+                
+                // KEY: If we have content and streaming stopped, we're done!
+                if (len > 10 && !status.isStreaming) {
+                    console.log(`[waitForNewResponse] ${provider}: ✅ Complete response detected at ${i * 0.1}s (${len} chars)`);
+                    foundCompleteResponse = true;
+                    break; // Exit immediately!
+                }
+                
+                // TIMEOUT SAFETY: If network interceptor isn't working after 10 seconds, abort and use DOM capture
+                if (!networkInterceptorWorking && i * 0.1 > 10) {
+                    console.log(`[waitForNewResponse] ${provider}: ⚠️ Network interceptor not working after 10s, falling back to DOM capture`);
+                    break;
+                }
+                
+                // Track growing response
+                if (len > lastResponseLength) {
+                    lastResponseLength = len;
+                }
+                
+            } catch (e) {
+                // Ignore polling errors
+            }
+        }
+
+        if (!foundCompleteResponse) {
+            console.log(`[waitForNewResponse] ${provider}: ⚠️ No complete response from network, using DOM capture fallback`);
+        }
+
+        // Small settle delay (reduced from 1000ms to 300ms)
+        await this.sleep(300);
+
+        // Capture final response using DOM (works for all providers)
+        console.log(`[waitForNewResponse] ${provider}: Capturing final response via DOM...`);
+        const response = await this.getProviderResponse(provider);
+        
+        // Validation
+        if (previousFingerprint && response === 'No response captured') {
+            console.error(`[waitForNewResponse] ${provider}: ⚠️ Failed to capture new response`);
+        } else if (previousFingerprint && response.substring(0, 100) === previousFingerprint.substring(0, 100)) {
+            console.error(`[waitForNewResponse] ${provider}: ⚠️ Response matches previous (first 100 chars)`);
+        } else {
+            console.log(`[waitForNewResponse] ${provider}: ✓ Captured ${response.length} chars`);
+        }
+
+        return response;
     }
 
     async getProviderResponse(provider, customSelector = null) {
